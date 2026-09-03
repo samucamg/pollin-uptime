@@ -5,6 +5,47 @@ import { PollinationsClient } from "./pollinations";
 
 export class WebSearchRouter {
   /**
+   * Identifica URLs em mensagens para interceptação com Jina Reader ($0)
+   */
+  static extractUrlFromMessages(messages: ChatMessage[]): string | null {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (!lastUserMsg || typeof lastUserMsg.content !== "string") return null;
+
+    const urlMatch = lastUserMsg.content.match(
+      /https?:\/\/[^\s<>"{}|\\^~[\]`]+/i,
+    );
+    return urlMatch ? urlMatch[0] : null;
+  }
+
+  /**
+   * Busca conteúdo limpo de URLs via Jina Reader (r.jina.ai - Gratuito $0)
+   */
+  static async fetchWithJinaReader(
+    targetUrl: string,
+    timeoutMs: number = 10000,
+  ): Promise<string | null> {
+    try {
+      const jinaUrl = `https://r.jina.ai/${targetUrl}`;
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch(jinaUrl, {
+        headers: { Accept: "text/plain" },
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+
+      if (res.ok) {
+        const text = await res.text();
+        return text.slice(0, 15000); // Limita tamanho para caber no contexto
+      }
+    } catch (err) {
+      console.warn("Jina Reader fetch failed:", err);
+    }
+    return null;
+  }
+
+  /**
    * Identifica se a requisição precisa de busca na Web
    */
   static shouldPerformSearch(
@@ -18,7 +59,6 @@ export class WebSearchRouter {
     )
       return true;
 
-    // Detecta se a última mensagem do usuário pede busca explícita
     const lastUserMsg = [...(req.messages || [])]
       .reverse()
       .find((m) => m.role === "user");
@@ -54,6 +94,37 @@ export class WebSearchRouter {
   }
 
   /**
+   * Executa busca no SearXNG se configurado
+   */
+  static async searchWithSearXNG(
+    searxngUrl: string,
+    query: string,
+    timeoutMs: number = 8000,
+  ): Promise<string | null> {
+    try {
+      const endpoint = `${searxngUrl.replace(/\/+$/, "")}/search?q=${encodeURIComponent(query)}&format=json`;
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch(endpoint, { signal: controller.signal });
+      clearTimeout(id);
+
+      if (res.ok) {
+        const data: any = await res.json();
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          const topResults = data.results
+            .slice(0, 5)
+            .map((r: any) => `- [${r.title}](${r.url}): ${r.content || ""}`);
+          return topResults.join("\n\n");
+        }
+      }
+    } catch (err) {
+      console.warn("SearXNG search error:", err);
+    }
+    return null;
+  }
+
+  /**
    * Executa a busca delegada no modelo mais barato com fallback
    */
   static async executeSearch(
@@ -61,6 +132,22 @@ export class WebSearchRouter {
     query: string,
     apiKey?: string,
   ): Promise<{ searchSummary: string; modelUsed: string; success: boolean }> {
+    // 1. Tenta SearXNG se configurado
+    if (env.SEARXNG_URL) {
+      const searxngResults = await WebSearchRouter.searchWithSearXNG(
+        env.SEARXNG_URL,
+        query,
+      );
+      if (searxngResults) {
+        return {
+          searchSummary: searxngResults,
+          modelUsed: "searxng-search",
+          success: true,
+        };
+      }
+    }
+
+    // 2. Desvia para modelo de busca mais barato da Pollinations (gemini-search / perplexity)
     const searchModels = [
       env.DEFAULT_SEARCH_MODEL || DEFAULT_SEARCH_FALLBACKS[0],
       env.SEARCH_FALLBACK_MODEL || DEFAULT_SEARCH_FALLBACKS[1],
@@ -134,7 +221,6 @@ ${searchSummary}
 Instruções: Use os dados acima para enriquecer sua resposta com fatos atualizados, mantendo seu próprio estilo e raciocínio.`,
     };
 
-    // Insere logo antes da última mensagem do usuário ou após o prompt de sistema inicial
     const cloned = [...messages];
     const systemIndex = cloned.findIndex((m) => m.role === "system");
 

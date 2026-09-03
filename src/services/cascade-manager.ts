@@ -1,9 +1,5 @@
-import { GATEWAY_HEADERS, MAX_FALLBACK_STEPS } from "../constants/limits";
-import {
-  DEFAULT_CODE_FALLBACKS,
-  DEFAULT_IMAGE_FALLBACKS,
-  DEFAULT_TEXT_FALLBACKS,
-} from "../constants/models";
+import { MAX_FALLBACK_STEPS } from "../constants/limits";
+import { DEFAULT_TEXT_FALLBACKS } from "../constants/models";
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
@@ -30,7 +26,7 @@ export class CascadeManager {
   }
 
   /**
-   * Constrói a lista de 3 modelos ordenados (Primário -> Fallback 1 -> Fallback 2)
+   * Constrói a lista de modelos da Pollinations
    */
   buildCascadeChain(
     primaryModel: string,
@@ -50,7 +46,6 @@ export class CascadeManager {
       }
     }
 
-    // Preenche com os defaults configurados no Worker
     const envFallbacks = [
       this.env.DEFAULT_FALLBACK_1 || DEFAULT_TEXT_FALLBACKS[0],
       this.env.DEFAULT_FALLBACK_2 || DEFAULT_TEXT_FALLBACKS[1],
@@ -67,7 +62,82 @@ export class CascadeManager {
   }
 
   /**
-   * Executa a requisição de Chat Completions através da cascata de 3 modelos
+   * Executa chamada para Provedor Externo Compatível com OpenAI (Última Camada de Resiliência)
+   */
+  private async executeExternalFallback(
+    req: ChatCompletionRequest,
+    startTime: number,
+    attempts: number,
+    triedModels: string[],
+  ): Promise<CascadeResult> {
+    const externalUrl = this.env.EXTERNAL_FALLBACK_URL?.trim();
+    const externalKey = this.env.EXTERNAL_FALLBACK_KEY?.trim();
+    const externalModel = this.env.EXTERNAL_FALLBACK_MODEL?.trim() || req.model;
+
+    if (!externalUrl || !externalKey) {
+      throw new UpstreamError(
+        "All Pollinations models failed and no external fallback provider is configured",
+        502,
+      );
+    }
+
+    console.info(
+      `[Ultimate Failover] Invoking external OpenAI provider: ${externalUrl} (${externalModel})`,
+    );
+    const endpoint = `${externalUrl.replace(/\/+$/, "")}/chat/completions`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort("External timeout"),
+      30000,
+    );
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${externalKey}`,
+        },
+        body: JSON.stringify({
+          ...req,
+          model: externalModel,
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new UpstreamError(
+          `External provider returned ${res.status}: ${errText.slice(0, 200)}`,
+          res.status,
+        );
+      }
+
+      const data: any = await res.json();
+      const totalLatencyMs = Date.now() - startTime;
+      triedModels.push(`external:${externalModel}`);
+
+      return {
+        response: data,
+        modelUsed: `${externalModel} (external)`,
+        attemptsCount: attempts + 1,
+        fallbackChain: triedModels,
+        totalLatencyMs,
+        toolMode: "native",
+      };
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      throw new UpstreamError(
+        `External fallback provider failed: ${err.message || err}`,
+        502,
+      );
+    }
+  }
+
+  /**
+   * Executa a requisição de Chat Completions através da cascata de 3 modelos + Provedor Externo
    */
   async executeChatCascade(
     req: ChatCompletionRequest,
@@ -95,7 +165,6 @@ export class CascadeManager {
       try {
         const requestBody = { ...req, model: currentModel };
 
-        // Se estivermos em modo emulado de tools, injetamos ReAct no system prompt e removemos tools nativas
         if (currentToolMode === "emulated" && hasTools) {
           const systemMsg = requestBody.messages.find(
             (m) => m.role === "system",
@@ -134,7 +203,6 @@ export class CascadeManager {
         const totalLatencyMs = Date.now() - startTime;
         const responseData = res.data;
 
-        // Se o modelo respondeu em modo emulado, extrai o tool_calls do texto
         if (
           currentToolMode === "emulated" &&
           responseData?.choices?.[0]?.message?.content
@@ -164,7 +232,6 @@ export class CascadeManager {
           err.message,
         );
 
-        // Se o modelo falhou por não suportar 'tools' (400), chaveamos para modo emulado antes de desistir
         if (
           hasTools &&
           currentToolMode === "native" &&
@@ -174,8 +241,21 @@ export class CascadeManager {
             `Model ${currentModel} rejected native tools. Switching to ToolCallingEmulator ReAct...`,
           );
           currentToolMode = "emulated";
-          // Tenta novamente este mesmo modelo ou o próximo com o emulador
         }
+      }
+    }
+
+    // ÚLTIMA CAMADA DE RESILIÊNCIA: Provedor Externo (se configurado)
+    if (this.env.EXTERNAL_FALLBACK_URL && this.env.EXTERNAL_FALLBACK_KEY) {
+      try {
+        return await this.executeExternalFallback(
+          req,
+          startTime,
+          attempts,
+          triedModels,
+        );
+      } catch (extErr) {
+        console.error("External fallback also failed:", extErr);
       }
     }
 
@@ -220,7 +300,6 @@ export class CascadeManager {
           timeoutMs,
         });
 
-        // Sucesso ao estabelecer o stream inicial
         return {
           response,
           modelUsed: currentModel,
@@ -233,6 +312,33 @@ export class CascadeManager {
           `Stream cascade step ${i + 1} (${currentModel}) failed to connect:`,
           err,
         );
+      }
+    }
+
+    // Streaming com failover externo
+    if (this.env.EXTERNAL_FALLBACK_URL && this.env.EXTERNAL_FALLBACK_KEY) {
+      try {
+        const extEndpoint = `${this.env.EXTERNAL_FALLBACK_URL.replace(/\/+$/, "")}/chat/completions`;
+        const extModel = this.env.EXTERNAL_FALLBACK_MODEL || req.model;
+        const res = await fetch(extEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.env.EXTERNAL_FALLBACK_KEY}`,
+          },
+          body: JSON.stringify({ ...req, model: extModel, stream: true }),
+        });
+        if (res.ok) {
+          triedModels.push(`external:${extModel}`);
+          return {
+            response: res,
+            modelUsed: `${extModel} (external)`,
+            attemptsCount: attempts + 1,
+            fallbackChain: triedModels,
+          };
+        }
+      } catch (extErr) {
+        console.error("External stream failover error:", extErr);
       }
     }
 

@@ -15,7 +15,12 @@
     "DEFAULT_SEARCH_MODEL": "gemini-search",
     "SEARCH_FALLBACK_MODEL": "perplexity-fast",
     "SEARCH_TIMEOUT_MS": "15000",
-    "CASCADE_TIMEOUT_MS": "30000"
+    "CASCADE_TIMEOUT_MS": "30000",
+    "EXTERNAL_FALLBACK_URL": "",
+    "EXTERNAL_FALLBACK_KEY": "",
+    "EXTERNAL_FALLBACK_MODEL": "",
+    "SEARXNG_URL": "https://search.br5.com.br",
+    "ENABLE_JINA_READER": "true"
   },
   "kv_namespaces": [
     {

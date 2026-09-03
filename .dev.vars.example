@@ -1,2 +1,11 @@
 POLLINATIONS_API_KEY=sk_your_pollinations_api_key_here
-AUTH_TOKEN=your_custom_gateway_master_token_here
+AUTH_TOKEN=your_gateway_master_password_here
+
+# Última camada de resiliência externa (Opcional - Ex: Groq, OpenRouter, CheaperInference, DeepSeek)
+EXTERNAL_FALLBACK_URL=https://api.groq.com/openai/v1
+EXTERNAL_FALLBACK_KEY=gsk_your_external_api_key
+EXTERNAL_FALLBACK_MODEL=llama-3.3-70b-versatile
+
+# Motores de Busca & RAG
+SEARXNG_URL=https://search.br5.com.br
+ENABLE_JINA_READER=true

@@ -15,7 +15,14 @@ export interface EnvBindings {
   SEARCH_TIMEOUT_MS?: string;
   CASCADE_TIMEOUT_MS?: string;
 
+  // Ultimate External Fallback (Qualquer provedor compatível com OpenAI: Groq, OpenRouter, CheaperInference, DeepSeek, Together)
+  EXTERNAL_FALLBACK_URL?: string;
+  EXTERNAL_FALLBACK_KEY?: string;
+  EXTERNAL_FALLBACK_MODEL?: string;
+
+  // Motores de Busca & RAG
   SEARXNG_URL?: string;
+  ENABLE_JINA_READER?: string;
 }
 
 export interface HonoVariables {
