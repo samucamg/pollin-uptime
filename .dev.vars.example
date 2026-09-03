@@ -1,46 +1,29 @@
 # ==============================================================================
-# pollin-uptime: Variáveis de Ambiente e Segredos (Cloudflare Workers)
+# pollin-uptime: Chaves de API e Segredos (Cloudflare Workers)
+# ==============================================================================
+# Apenas chaves (keys) e senhas mestras devem ser configuradas como segredo!
+# URLs, modelos e seleções de tipo são configurados em wrangler.jsonc (vars).
+# Todos os campos abaixo são opcionais e podem ser deixados em branco no formulário.
 # ==============================================================================
 
-# 1. Autenticação & Pollinations Upstream
-# Obtenha sua chave secreta em: https://enter.pollinations.ai/keys
-POLLINATIONS_API_KEY=sk_your_pollinations_key_here
+# 1. Chave de API Upstream da Pollinations (Opcional - https://enter.pollinations.ai/keys)
+# Se não configurada, o gateway opera no modo gratuito/público ou aceita chaves dos clientes.
+POLLINATIONS_API_KEY=
 
-# Senha mestre privada do seu gateway (usada pelos seus clientes SDK/n8n/Cursor)
-AUTH_TOKEN=your_secure_gateway_master_password_here
+# 2. Senha mestre privada do seu gateway (Opcional)
+# Protege o endpoint contra acessos externos não autorizados (Cursor / n8n / SDK).
+# Se deixado em branco, qualquer requisição é aceita.
+AUTH_TOKEN=
 
-# ------------------------------------------------------------------------------
-# 2. Última Camada de Resiliência Externa (Qualquer provedor OpenAI-Compatible)
-# Se toda a Pollinations cair, o gateway aciona este endpoint de emergência!
-# Exemplos gratuitos / acessíveis: Groq, OpenRouter, CheaperInference, Together AI, DeepSeek
-# ------------------------------------------------------------------------------
-EXTERNAL_FALLBACK_URL=https://api.groq.com/openai/v1
-EXTERNAL_FALLBACK_KEY=gsk_your_external_provider_key_here
-EXTERNAL_FALLBACK_MODEL=llama-3.3-70b-versatile
+# 3. Chave do Provedor de Fallback Externo (Opcional - Groq, OpenRouter, Together AI, etc.)
+# Usado apenas se preenchido juntamente com EXTERNAL_FALLBACK_URL em wrangler.jsonc.
+EXTERNAL_FALLBACK_KEY=
 
-# ------------------------------------------------------------------------------
-# 3. Motores de Busca Web com Free Tier Real (Sem Cartão de Crédito)
-# Configure até 2 provedores de busca. Se falharem, usa o fallback nativo da Pollinations!
-# Tipos suportados: searxng, tavily, serper, duckduckgo
-# ------------------------------------------------------------------------------
-
-# Provedor de Busca 1: Exemplo SearXNG (Suba com o docker compose na pasta deploy/searxng)
-SEARCH_PROVIDER_1_TYPE=searxng
-SEARCH_PROVIDER_1_URL=http://your-searxng-host:8080
+# 4. Chaves de API para Provedores de Busca Web (Opcionais - Tavily, Serper)
+# Deixe em branco se utilizar motores gratuitos que não necessitam de chave (DuckDuckGo, SearXNG).
 SEARCH_PROVIDER_1_KEY=
+SEARCH_PROVIDER_2_KEY=
 
-# Provedor de Busca 2: Exemplo Tavily (1.000 buscas grátis/mês em https://tavily.com)
-SEARCH_PROVIDER_2_TYPE=tavily
-SEARCH_PROVIDER_2_KEY=tvly-your_tavily_key_here
-SEARCH_PROVIDER_2_URL=
-
-# ------------------------------------------------------------------------------
-# 4. Provedores de Web Fetch & Scraping de URLs
-# ------------------------------------------------------------------------------
-# Fetch 1: Jina Reader (100% Gratuito $0, sem chave, converte qualquer URL para Markdown)
-FETCH_PROVIDER_1_TYPE=jina
-ENABLE_JINA_READER=true
-
-# Fetch 2: Firecrawl (Opcional - 500 créditos grátis em https://firecrawl.dev)
-FETCH_PROVIDER_2_TYPE=firecrawl
-FETCH_PROVIDER_2_KEY=fc-your_firecrawl_key_here
+# 5. Chave de API para Provedor de Web Scraping (Opcional - Firecrawl)
+# Deixe em branco se utilizar o Jina Reader ($0 gratuito sem necessidade de chave).
+FETCH_PROVIDER_2_KEY=

@@ -15,7 +15,17 @@
     "SEARCH_FALLBACK_MODEL": "perplexity-fast",
     "SEARCH_TIMEOUT_MS": "15000",
     "CASCADE_TIMEOUT_MS": "30000",
-    "ENABLE_JINA_READER": "true"
+    "ENABLE_JINA_READER": "true",
+    "EXTERNAL_FALLBACK_URL": "",
+    "EXTERNAL_FALLBACK_MODEL": "llama-3.3-70b-versatile",
+    "SEARCH_PROVIDER_1_TYPE": "duckduckgo",
+    "SEARCH_PROVIDER_1_URL": "",
+    "SEARCH_PROVIDER_2_TYPE": "",
+    "SEARCH_PROVIDER_2_URL": "",
+    "FETCH_PROVIDER_1_TYPE": "jina",
+    "FETCH_PROVIDER_1_URL": "",
+    "FETCH_PROVIDER_2_TYPE": "",
+    "FETCH_PROVIDER_2_URL": ""
   },
   "kv_namespaces": [
     {

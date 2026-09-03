@@ -14,6 +14,59 @@
   },
   "author": "Samuel Santos (@samucamg)",
   "license": "MIT",
+  "cloudflare": {
+    "label": "Pollin Uptime Gateway",
+    "bindings": {
+      "POLLINATIONS_API_KEY": {
+        "description": "(Opcional) Chave de API da Pollinations (https://enter.pollinations.ai/keys). Pode ser deixada em branco."
+      },
+      "AUTH_TOKEN": {
+        "description": "(Opcional) Senha mestra para proteger seu gateway contra acessos não autorizados. Pode ser deixada em branco."
+      },
+      "EXTERNAL_FALLBACK_KEY": {
+        "description": "(Opcional) Chave de API para provedor de fallback externo (Groq/OpenRouter). Pode ser deixada em branco."
+      },
+      "EXTERNAL_FALLBACK_URL": {
+        "description": "(Opcional) URL do endpoint compatível com OpenAI (ex: https://api.groq.com/openai/v1). Pode ser deixada em branco."
+      },
+      "EXTERNAL_FALLBACK_MODEL": {
+        "description": "(Opcional) Modelo do fallback externo (ex: llama-3.3-70b-versatile)."
+      },
+      "SEARCH_PROVIDER_1_TYPE": {
+        "description": "Tipo do 1º provedor de busca: duckduckgo (grátis $0 sem chave/URL), searxng, tavily ou serper."
+      },
+      "SEARCH_PROVIDER_1_URL": {
+        "description": "(Opcional) URL do seu SearXNG (ex: http://seu-host:8080). Pode ser deixada em branco se usar DuckDuckGo."
+      },
+      "SEARCH_PROVIDER_1_KEY": {
+        "description": "(Opcional) Chave de API caso utilize Tavily ou Serper no slot 1. Pode ser deixada em branco."
+      },
+      "SEARCH_PROVIDER_2_TYPE": {
+        "description": "(Opcional) Tipo do 2º provedor de busca: tavily, serper, duckduckgo ou searxng. Pode ser deixado em branco."
+      },
+      "SEARCH_PROVIDER_2_URL": {
+        "description": "(Opcional) URL do 2º provedor de busca se for SearXNG. Pode ser deixada em branco."
+      },
+      "SEARCH_PROVIDER_2_KEY": {
+        "description": "(Opcional) Chave de API para o 2º provedor de busca (ex: tvly-...). Pode ser deixada em branco."
+      },
+      "FETCH_PROVIDER_1_TYPE": {
+        "description": "Tipo do 1º provedor de fetch de URL: jina ($0 sem chave) ou firecrawl."
+      },
+      "FETCH_PROVIDER_1_URL": {
+        "description": "(Opcional) URL customizada do 1º provedor de fetch. Pode ser deixada em branco."
+      },
+      "FETCH_PROVIDER_2_TYPE": {
+        "description": "(Opcional) Tipo do 2º provedor de fetch: firecrawl ou jina. Pode ser deixado em branco."
+      },
+      "FETCH_PROVIDER_2_URL": {
+        "description": "(Opcional) URL customizada do 2º provedor de fetch. Pode ser deixada em branco."
+      },
+      "FETCH_PROVIDER_2_KEY": {
+        "description": "(Opcional) Chave de API para Firecrawl (fc-...). Pode ser deixada em branco."
+      }
+    }
+  },
   "devDependencies": {
     "@biomejs/biome": "2.4.2",
     "@cloudflare/workers-types": "^4.20250701.0",

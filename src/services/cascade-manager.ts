@@ -246,7 +246,9 @@ export class CascadeManager {
     }
 
     // ÚLTIMA CAMADA DE RESILIÊNCIA: Provedor Externo (se configurado)
-    if (this.env.EXTERNAL_FALLBACK_URL && this.env.EXTERNAL_FALLBACK_KEY) {
+    const extUrl = this.env.EXTERNAL_FALLBACK_URL?.trim();
+    const extKey = this.env.EXTERNAL_FALLBACK_KEY?.trim();
+    if (extUrl && extKey) {
       try {
         return await this.executeExternalFallback(
           req,
@@ -316,15 +318,17 @@ export class CascadeManager {
     }
 
     // Streaming com failover externo
-    if (this.env.EXTERNAL_FALLBACK_URL && this.env.EXTERNAL_FALLBACK_KEY) {
+    const extUrlStream = this.env.EXTERNAL_FALLBACK_URL?.trim();
+    const extKeyStream = this.env.EXTERNAL_FALLBACK_KEY?.trim();
+    if (extUrlStream && extKeyStream) {
       try {
-        const extEndpoint = `${this.env.EXTERNAL_FALLBACK_URL.replace(/\/+$/, "")}/chat/completions`;
-        const extModel = this.env.EXTERNAL_FALLBACK_MODEL || req.model;
+        const extEndpoint = `${extUrlStream.replace(/\/+$/, "")}/chat/completions`;
+        const extModel = this.env.EXTERNAL_FALLBACK_MODEL?.trim() || req.model;
         const res = await fetch(extEndpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${this.env.EXTERNAL_FALLBACK_KEY}`,
+            Authorization: `Bearer ${extKeyStream}`,
           },
           body: JSON.stringify({ ...req, model: extModel, stream: true }),
         });

@@ -98,9 +98,10 @@ export class WebSearchRouter {
     query: string,
     timeoutMs: number = 8000,
   ): Promise<SearchResultItem[] | null> {
-    if (!url) return null;
+    const cleanUrl = url?.trim();
+    if (!cleanUrl) return null;
     try {
-      const endpoint = `${url.replace(/\/+$/, "")}/search?q=${encodeURIComponent(query)}&format=json`;
+      const endpoint = `${cleanUrl.replace(/\/+$/, "")}/search?q=${encodeURIComponent(query)}&format=json`;
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -131,7 +132,8 @@ export class WebSearchRouter {
     query: string,
     timeoutMs: number = 8000,
   ): Promise<SearchResultItem[] | null> {
-    if (!apiKey) return null;
+    const cleanKey = apiKey?.trim();
+    if (!cleanKey) return null;
     try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -140,7 +142,7 @@ export class WebSearchRouter {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          api_key: apiKey,
+          api_key: cleanKey,
           query,
           search_depth: "basic",
           max_results: 5,
@@ -173,7 +175,8 @@ export class WebSearchRouter {
     query: string,
     timeoutMs: number = 8000,
   ): Promise<SearchResultItem[] | null> {
-    if (!apiKey) return null;
+    const cleanKey = apiKey?.trim();
+    if (!cleanKey) return null;
     try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -181,7 +184,7 @@ export class WebSearchRouter {
       const res = await fetch("https://google.serper.dev/search", {
         method: "POST",
         headers: {
-          "X-API-KEY": apiKey,
+          "X-API-KEY": cleanKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ q: query, num: 5 }),
@@ -233,7 +236,7 @@ export class WebSearchRouter {
         const results: SearchResultItem[] = [];
         const regex =
           /<a class="result__url" href="([^"]+)".*?<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/g;
-        let match = regex.exec(html);
+        const match = regex.exec(html);
         while (match !== null && results.length < 5) {
           const rawUrl = match[1].replace(
             /\/\/duckduckgo\.com\/l\/\?uddg=/,
@@ -267,24 +270,28 @@ export class WebSearchRouter {
     key?: string,
     query: string = "",
   ): Promise<{ results: SearchResultItem[]; provider: string } | null> {
-    if (!type) return null;
+    const cleanType = type?.trim();
+    const cleanUrl = url?.trim();
+    const cleanKey = key?.trim();
 
-    if (type === "searxng" && url) {
-      const res = await WebSearchRouter.searchSearXNG(url, query);
+    if (!cleanType) return null;
+
+    if (cleanType === "searxng" && cleanUrl) {
+      const res = await WebSearchRouter.searchSearXNG(cleanUrl, query);
       if (res && res.length > 0) return { results: res, provider: "searxng" };
     }
 
-    if (type === "tavily" && key) {
-      const res = await WebSearchRouter.searchTavily(key, query);
+    if (cleanType === "tavily" && cleanKey) {
+      const res = await WebSearchRouter.searchTavily(cleanKey, query);
       if (res && res.length > 0) return { results: res, provider: "tavily" };
     }
 
-    if (type === "serper" && key) {
-      const res = await WebSearchRouter.searchSerper(key, query);
+    if (cleanType === "serper" && cleanKey) {
+      const res = await WebSearchRouter.searchSerper(cleanKey, query);
       if (res && res.length > 0) return { results: res, provider: "serper" };
     }
 
-    if (type === "duckduckgo") {
+    if (cleanType === "duckduckgo") {
       const res = await WebSearchRouter.searchDuckDuckGo(query);
       if (res && res.length > 0)
         return { results: res, provider: "duckduckgo" };
@@ -446,9 +453,11 @@ export class WebSearchRouter {
     customBaseUrl?: string,
     timeoutMs: number = 12000,
   ): Promise<string | null> {
-    if (!apiKey) return null;
+    const cleanKey = apiKey?.trim();
+    if (!cleanKey) return null;
     try {
-      const baseUrl = (customBaseUrl || "https://api.firecrawl.dev").replace(
+      const cleanCustomUrl = customBaseUrl?.trim();
+      const baseUrl = (cleanCustomUrl || "https://api.firecrawl.dev").replace(
         /\/+$/,
         "",
       );
@@ -460,7 +469,7 @@ export class WebSearchRouter {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${cleanKey}`,
         },
         body: JSON.stringify({ url: targetUrl, formats: ["markdown"] }),
         signal: controller.signal,
@@ -486,8 +495,11 @@ export class WebSearchRouter {
     env: EnvBindings,
     targetUrl: string,
   ): Promise<FetchExecutionResult> {
+    const type1 = env.FETCH_PROVIDER_1_TYPE?.trim() || "jina";
+    const key1 = env.FETCH_PROVIDER_1_KEY?.trim();
+    const url1 = env.FETCH_PROVIDER_1_URL?.trim();
+
     // 1. Tenta Fetch Slot 1 (Padrão Jina Reader $0 se não configurado)
-    const type1 = env.FETCH_PROVIDER_1_TYPE || "jina";
     if (type1 === "jina") {
       const text = await WebSearchRouter.fetchJinaReader(targetUrl);
       if (text)
@@ -497,12 +509,8 @@ export class WebSearchRouter {
           url: targetUrl,
           content: text,
         };
-    } else if (type1 === "firecrawl" && env.FETCH_PROVIDER_1_KEY) {
-      const text = await WebSearchRouter.fetchFirecrawl(
-        env.FETCH_PROVIDER_1_KEY,
-        targetUrl,
-        env.FETCH_PROVIDER_1_URL,
-      );
+    } else if (type1 === "firecrawl" && key1) {
+      const text = await WebSearchRouter.fetchFirecrawl(key1, targetUrl, url1);
       if (text)
         return {
           success: true,
@@ -513,12 +521,12 @@ export class WebSearchRouter {
     }
 
     // 2. Tenta Fetch Slot 2
-    if (env.FETCH_PROVIDER_2_TYPE === "firecrawl" && env.FETCH_PROVIDER_2_KEY) {
-      const text = await WebSearchRouter.fetchFirecrawl(
-        env.FETCH_PROVIDER_2_KEY,
-        targetUrl,
-        env.FETCH_PROVIDER_2_URL,
-      );
+    const type2 = env.FETCH_PROVIDER_2_TYPE?.trim();
+    const key2 = env.FETCH_PROVIDER_2_KEY?.trim();
+    const url2 = env.FETCH_PROVIDER_2_URL?.trim();
+
+    if (type2 === "firecrawl" && key2) {
+      const text = await WebSearchRouter.fetchFirecrawl(key2, targetUrl, url2);
       if (text)
         return {
           success: true,
@@ -526,7 +534,7 @@ export class WebSearchRouter {
           url: targetUrl,
           content: text,
         };
-    } else if (env.FETCH_PROVIDER_2_TYPE === "jina") {
+    } else if (type2 === "jina") {
       const text = await WebSearchRouter.fetchJinaReader(targetUrl);
       if (text)
         return {

@@ -13,7 +13,7 @@ Deploy do seu próprio motor de meta-pesquisa SearXNG 100% gratuito, sem limites
    docker compose up -d
    ```
 3. O SearXNG estará disponível em `http://SEU_IP:8080`.
-4. Configure a URL no seu Worker (em `.dev.vars` ou Secrets da Cloudflare):
+4. Configure a URL no seu Worker (em `wrangler.jsonc` sob `vars`, ou nas Variáveis de Ambiente da Cloudflare):
    ```env
    SEARCH_PROVIDER_1_TYPE=searxng
    SEARCH_PROVIDER_1_URL=http://SEU_IP:8080

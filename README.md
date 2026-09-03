@@ -111,21 +111,21 @@ Why pay for search or enter credit cards? We selected search and fetch providers
 
 ### Configuring Search Slots (Up to 2 Search & 2 Fetch Providers)
 
-In your Cloudflare Worker environment variables or `.dev.vars`:
+In your Cloudflare Worker environment variables (`vars` in `wrangler.jsonc`) or `.dev.vars` (for secret keys):
 
 ```env
-# --- Search Slots ---
-SEARCH_PROVIDER_1_TYPE=searxng
-SEARCH_PROVIDER_1_URL=http://your-searxng-host:8080
-
+# --- Environment Variables (wrangler.jsonc vars - open text) ---
+SEARCH_PROVIDER_1_TYPE=duckduckgo
+SEARCH_PROVIDER_1_URL=
 SEARCH_PROVIDER_2_TYPE=tavily
-SEARCH_PROVIDER_2_KEY=tvly-your_key_here
-
-# --- Web Fetch Slots ---
+SEARCH_PROVIDER_2_URL=
 FETCH_PROVIDER_1_TYPE=jina
 ENABLE_JINA_READER=true
-
 FETCH_PROVIDER_2_TYPE=firecrawl
+
+# --- Secrets & Keys (.dev.vars / Cloudflare Secrets) ---
+SEARCH_PROVIDER_1_KEY=
+SEARCH_PROVIDER_2_KEY=tvly-your_key_here
 FETCH_PROVIDER_2_KEY=fc-your_key_here
 ```
 
@@ -198,20 +198,32 @@ Conta com uma **cascata de 4 camadas de resiliência** (Modelo Principal ➔ Fal
 
 </div>
 
-### 🧩 Variáveis de Configuração
+### 🧩 Variáveis de Configuração e Segredos
+Todos os campos são **opcionais** e podem ser deixados em branco caso não vá utilizar o recurso específico.
 
-| Variável | Exemplo Seguro | Descrição |
+#### 🔒 Segredos (`.dev.vars` / Cloudflare Secrets) - Apenas Chaves e Senhas
+| Segredo | Exemplo | Descrição |
 |---|---|---|
-| **`RATE_LIMIT_STORE`** | `pollin-rate-limit` | Namespace KV para controle de taxa. |
-| **`CACHE_STORE`** | `pollin-cache` | Namespace KV para cache dinâmico de catálogo. |
-| **`POLLINATIONS_API_KEY`** | Sua chave `sk_...` | Chave secreta da Pollinations ([enter.pollinations.ai](https://enter.pollinations.ai/keys)). |
-| **`AUTH_TOKEN`** | *(Sua senha segura)* | Token mestre privado para seus clientes acessarem o gateway. |
-| **`EXTERNAL_FALLBACK_URL`** | `https://api.groq.com/openai/v1` | Provedor de emergência (Groq, OpenRouter, CheaperInference). |
-| **`EXTERNAL_FALLBACK_KEY`** | `gsk_...` | Chave de API do provedor externo. |
-| **`EXTERNAL_FALLBACK_MODEL`** | `llama-3.3-70b-versatile` | Modelo de contingência final. |
-| **`SEARCH_PROVIDER_1_TYPE`** | `searxng` ou `tavily` | 1º motor de busca web. |
-| **`SEARCH_PROVIDER_1_URL`** | `http://seu-ip:8080` | URL do seu SearXNG (se usar SearXNG). |
-| **`SEARCH_PROVIDER_1_KEY`** | `tvly-...` | Chave de API (se usar Tavily ou Serper). |
+| **`POLLINATIONS_API_KEY`** | `sk_...` | Chave secreta da Pollinations ([enter.pollinations.ai](https://enter.pollinations.ai/keys)). Deixe vazio para modo gratuito/público. |
+| **`AUTH_TOKEN`** | `sua-senha-mestra` | Token mestre privado para seus clientes acessarem o gateway. Deixe vazio para acesso livre. |
+| **`EXTERNAL_FALLBACK_KEY`** | `gsk_...` | Chave de API do provedor externo (Groq, OpenRouter). Deixe vazio se não usar failover externo. |
+| **`SEARCH_PROVIDER_1_KEY`** | `tvly-...` | Chave de API de busca (se usar Tavily ou Serper). Deixe vazio para DuckDuckGo ou SearXNG. |
+| **`SEARCH_PROVIDER_2_KEY`** | `tvly-...` | Chave de API de busca do 2º provedor. Deixe vazio se não for utilizar. |
+| **`FETCH_PROVIDER_2_KEY`** | `fc-...` | Chave de API do Firecrawl. Deixe vazio se utilizar apenas Jina Reader ($0 sem chave). |
+
+#### 🌐 Variáveis de Ambiente (`wrangler.jsonc` `vars` - Texto Aberto)
+| Variável | Padrão | Descrição |
+|---|---|---|
+| **`EXTERNAL_FALLBACK_URL`** | `""` | URL do endpoint compatível com OpenAI (ex: `https://api.groq.com/openai/v1`). |
+| **`EXTERNAL_FALLBACK_MODEL`** | `llama-3.3-70b-versatile` | Modelo para o failover externo de emergência. |
+| **`SEARCH_PROVIDER_1_TYPE`** | `duckduckgo` | Motor de busca padrão (`duckduckgo`, `searxng`, `tavily`, `serper`). |
+| **`SEARCH_PROVIDER_1_URL`** | `""` | URL do seu SearXNG (ex: `http://seu-host:8080`). Vazio para DuckDuckGo. |
+| **`SEARCH_PROVIDER_2_TYPE`** | `""` | Segundo motor de busca opcional. |
+| **`SEARCH_PROVIDER_2_URL`** | `""` | URL do 2º provedor de busca se for SearXNG. |
+| **`FETCH_PROVIDER_1_TYPE`** | `jina` | Motor de leitura de URLs (`jina` $0 gratuito ou `firecrawl`). |
+| **`FETCH_PROVIDER_1_URL`** | `""` | URL customizada para o 1º provedor de fetch. |
+| **`FETCH_PROVIDER_2_TYPE`** | `""` | Segundo provedor de fetch opcional. |
+| **`FETCH_PROVIDER_2_URL`** | `""` | URL customizada para o 2º provedor de fetch. |
 
 ---
 
