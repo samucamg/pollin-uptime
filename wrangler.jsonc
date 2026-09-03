@@ -19,6 +19,9 @@
     "EXTERNAL_FALLBACK_URL": "",
     "EXTERNAL_FALLBACK_KEY": "",
     "EXTERNAL_FALLBACK_MODEL": "",
+    "EXTERNAL_SEARCH_URL": "",
+    "EXTERNAL_SEARCH_KEY": "",
+    "EXTERNAL_SEARCH_MODEL": "",
     "SEARXNG_URL": "https://search.br5.com.br",
     "ENABLE_JINA_READER": "true"
   },

@@ -20,6 +20,11 @@ export interface EnvBindings {
   EXTERNAL_FALLBACK_KEY?: string;
   EXTERNAL_FALLBACK_MODEL?: string;
 
+  // Provedor Externo Dedicado para Busca Web (Opcional - Ex: Perplexity API ou OpenRouter online)
+  EXTERNAL_SEARCH_URL?: string;
+  EXTERNAL_SEARCH_KEY?: string;
+  EXTERNAL_SEARCH_MODEL?: string;
+
   // Motores de Busca & RAG
   SEARXNG_URL?: string;
   ENABLE_JINA_READER?: string;

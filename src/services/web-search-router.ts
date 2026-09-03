@@ -132,6 +132,54 @@ export class WebSearchRouter {
     query: string,
     apiKey?: string,
   ): Promise<{ searchSummary: string; modelUsed: string; success: boolean }> {
+    // 0. Tenta Provedor Externo Dedicado de Busca se configurado
+    if (env.EXTERNAL_SEARCH_URL && env.EXTERNAL_SEARCH_KEY) {
+      try {
+        const extEndpoint = `${env.EXTERNAL_SEARCH_URL.replace(/\/+$/, "")}/chat/completions`;
+        const extModel = env.EXTERNAL_SEARCH_MODEL || "sonar";
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 12000);
+
+        const res = await fetch(extEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${env.EXTERNAL_SEARCH_KEY}`,
+          },
+          body: JSON.stringify({
+            model: extModel,
+            messages: [
+              {
+                role: "user",
+                content: `Pesquise e resuma fatos recentes sobre: "${query}". Seja objetivo e cite fontes.`,
+              },
+            ],
+            temperature: 0.2,
+            max_tokens: 800,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(id);
+
+        if (res.ok) {
+          const data: any = await res.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (content && content.trim().length > 20) {
+            return {
+              searchSummary: content.trim(),
+              modelUsed: `${extModel} (external-search)`,
+              success: true,
+            };
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "External web search provider failed, falling back to next provider:",
+          err,
+        );
+      }
+    }
+
     // 1. Tenta SearXNG se configurado
     if (env.SEARXNG_URL) {
       const searxngResults = await WebSearchRouter.searchWithSearXNG(
