@@ -2,8 +2,8 @@
 
 # ⚡ Pollin Uptime
 
-### High Availability Serverless AI Gateway for Pollinations.ai with 3-Model Fallback Cascade & Search-Augmented Generation
-### Gateway Serverless de Alta Disponibilidade para Pollinations.ai com Cascata Tripla de Fallback e Busca Web Inteligente
+### High Availability Serverless AI Gateway for Pollinations.ai with 4-Tier Fallback Cascade, Search-Augmented Generation & Free-Tier RAG
+### Gateway Serverless de Alta Disponibilidade para Pollinations.ai com Cascata de 4 Níveis, Desvio de Busca Web e RAG com Free Tier Real
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/samucamg/pollin-uptime)
 
@@ -11,8 +11,10 @@
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![Hono](https://img.shields.io/badge/Hono-E36002?style=for-the-badge&logo=hono&logoColor=white)](https://hono.dev/)
 [![Pollinations.ai](https://img.shields.io/badge/Pollinations.ai-Unified_API-E8F372?style=for-the-badge&logoColor=black)](https://pollinations.ai/)
-[![OpenAI Compatible](https://img.shields.io/badge/OpenAI-compatible-412991?style=for-the-badge&logo=openai&logoColor=white)](#-openai-compatible-api)
-[![Anthropic Compatible](https://img.shields.io/badge/Anthropic-compatible-191919?style=for-the-badge)](#-anthropic-messages-api)
+[![Docker Compose](https://img.shields.io/badge/Docker_Compose-SearXNG-2496ED?style=for-the-badge&logo=docker&logoColor=white)](deploy/searxng/)
+[![Portainer Stack](https://img.shields.io/badge/Portainer-Stack_Ready-13BEF9?style=for-the-badge&logo=portainer&logoColor=white)](deploy/searxng/portainer-stack.yml)
+[![OpenAI Compatible](https://img.shields.io/badge/OpenAI-compatible-412991?style=for-the-badge&logo=openai&logoColor=white)](#-endpoint-matrix)
+[![Anthropic Compatible](https://img.shields.io/badge/Anthropic-compatible-191919?style=for-the-badge)](#-endpoint-matrix)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
 **[🇺🇸 English](#english) · [🇧🇷 Português](#portugues)**
@@ -26,34 +28,39 @@
 
 ## ✨ Overview
 
-**Pollin Uptime** is an edge-native, enterprise-grade AI gateway designed to provide **99.9% uptime and zero-interruption availability** on top of the [Pollinations.ai](https://pollinations.ai) ecosystem.
-
-Built with **Cloudflare Workers**, **Hono**, and **TypeScript**, it runs across hundreds of Cloudflare edge locations worldwide with near-zero cold starts. It safeguards your upstream credentials, intercepts failures, and transparently routes requests through a **3-model fallback cascade** while enabling **hybrid tool calling** and **Search-Augmented Generation (SAG)**.
+**Pollin Uptime** is an enterprise-grade, edge-native AI gateway that delivers **99.9% availability** on top of [Pollinations.ai](https://pollinations.ai). It shields upstream credentials, prevents downtime via a **4-tier resilience cascade** (Primary Model ➔ Fallback 1 ➔ Fallback 2 ➔ External OpenAI-compatible provider), and features **Search-Augmented Generation (SAG)** with zero-cost real free-tier search engines (SearXNG, Jina Reader, Tavily, Serper, DuckDuckGo).
 
 ```mermaid
 flowchart TD
     Client([Client: Cursor / n8n / SDK / WebApp]) -->|Request with AUTH_TOKEN or sk_...| Gateway[Cloudflare Worker: pollin-uptime]
     
-    subgraph WebSearchFlow [Intelligent Web Search Delegation]
-        Gateway -->|Requires Web Search?| SearchRoute{Search Detected?}
-        SearchRoute -->|Yes| CheapSearch[1st: gemini-search
-Fallback: perplexity-fast]
-        CheapSearch -->|Extract Factual Data & Sources| Enrich[Inject Live Facts into Context]
+    subgraph WebSearchFlow [Intelligent Web Search Bypass & RAG]
+        Gateway -->|Requires Search or URL?| SearchRoute{Search / Fetch?}
+        SearchRoute -->|Web Search| SearchSlots[1st: SearXNG / Tavily / Serper
+2nd: DuckDuckGo
+Fallback: gemini-search]
+        SearchRoute -->|URL Fetch| FetchSlots[1st: Jina Reader $0
+2nd: Firecrawl]
+        SearchSlots -->|Extract Live Facts & Sources| Enrich[Inject into Context]
+        FetchSlots -->|Clean Markdown| Enrich
     end
 
     Enrich --> ModelCascade
-    SearchRoute -->|No| ModelCascade
+    SearchRoute -->|No Search| ModelCascade
 
-    subgraph ModelCascade [3-Model Fallback Cascade]
-        M1[Step 1: Primary Model
+    subgraph ModelCascade [4-Tier Resilience Cascade]
+        M1[Tier 1: Primary Model
 e.g. claude / deepseek / gpt-5]
         M1 -->|Success| Finish([Response to Client])
-        M1 -->|Fails: 5xx, 429, Timeout or Tool Error| M2[Step 2: Fallback 1
-e.g. gemini-3-flash / openai-fast]
+        M1 -->|Fails: 429, 5xx, Timeout, Tool Error| M2[Tier 2: Fallback 1
+e.g. gemini-3-flash]
         M2 -->|Success| Finish
-        M2 -->|Fails| M3[Step 3: Fallback 2
-e.g. mistral / deepseek-pro]
+        M2 -->|Fails| M3[Tier 3: Fallback 2
+e.g. openai-fast / mistral]
         M3 -->|Success| Finish
+        M3 -->|Total Pollinations Outage| Ext[Tier 4: Ultimate External Failover
+e.g. Groq / OpenRouter / CheaperInference]
+        Ext -->|Success| Finish
     end
 
     subgraph ToolEmulator [Hybrid Tool Calling]
@@ -64,117 +71,73 @@ e.g. mistral / deepseek-pro]
 
 ---
 
-## 🚀 One-Click Cloudflare Deploy
+## 🗺️ Endpoint Matrix
 
-Deploy your own private, production-ready gateway in less than 60 seconds directly into Cloudflare:
-
-<div align="center">
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/samucamg/pollin-uptime)
-
-</div>
-
-### 🧩 Deployment Form Parameters
-
-| Field | Example Value | Description |
-|---|---|---|
-| **Project name** | `pollin-uptime` | Name for your Worker deployment. |
-| **RATE_LIMIT_STORE** | `pollin-rate-limit` | Cloudflare KV namespace for distributed DDoS & abuse prevention. |
-| **CACHE_STORE** | `pollin-cache` | Cloudflare KV namespace for dynamic model registry and cache. |
-| **`POLLINATIONS_API_KEY`** | `sk_...` | Your Pollinations Secret API Key from [enter.pollinations.ai](https://enter.pollinations.ai/keys). *(Optional in BYOP mode)* |
-| **`AUTH_TOKEN`** | *(Your secure password)* | Master private token that clients send to authenticate with your gateway. |
-| **`DEFAULT_FALLBACK_1`** | `gemini-3-flash` | First fallback model if primary fails. |
-| **`DEFAULT_FALLBACK_2`** | `openai-fast` | Second fallback model. |
-| **`DEFAULT_FALLBACK_3`** | `mistral` | Third safety net fallback. |
+| Method | Endpoint | Compatibility | Description |
+|---|---|---|---|
+| `GET` | `/` | Gateway | Health check and endpoint discovery |
+| `GET` | `/v1/models` | OpenAI-style | Dynamic upstream model catalog with KV cache |
+| `POST` | `/v1/chat/completions` | OpenAI | Chat, vision input, and SSE streaming with 4-tier cascade |
+| `POST` | `/v1/responses` | OpenAI | Structured Responses API and reasoning controls |
+| `POST` | `/v1/messages` | Anthropic | Messages API translation and streaming bridge |
+| `POST` | `/v1/images/generations` | OpenAI | Image generation with automatic model fallback |
+| `POST` | `/v1/images/edits` | OpenAI | Image editing with prompt and reference image |
+| `POST` | `/v1/audio/speech` | OpenAI | Multi-engine text-to-speech |
+| `POST` | `/v1/audio/transcriptions` | OpenAI | Multipart speech-to-text (Whisper) |
+| `POST` | `/v1/audio/translations` | OpenAI | Audio translation to English |
+| `POST` | `/v1/search` | Gateway | Dedicated web search hub (SearXNG / Tavily / Serper) |
+| `POST` | `/v1/web/fetch` | Gateway | Dedicated Jina Reader ($0) / Firecrawl URL scraper |
 
 ---
 
-## 🧰 Key Features
+## 🔍 Web Search & RAG: Real Free-Tier Providers
 
-1. **🛡️ 3-Model Fallback Cascade:**
-   - Automatically retries requests across 3 candidate models upon upstream 429 (rate-limit / queue full), 500/502/503/504 errors, timeouts, or tool execution refusals.
-   - Customizable per-request via `x-fallback-models: modelA,modelB` header.
-2. **🌐 Search-Augmented Generation (SAG):**
-   - Automatically delegates web search sub-tasks to the fastest, most economical search model (`gemini-search` with fallback to `perplexity-fast`).
-   - Injects fresh internet facts and sources directly into the context of the **original model chosen by the user** (e.g. `deepseek`, `claude`, `qwen`), preserving its personality and analytical depth!
-3. **🛠️ Hybrid Tool Calling:**
-   - First attempts native OpenAI `tools`.
-   - If the backend model does not support native tools (or returns a 400 parameter rejection), the gateway activates the **ReAct ToolCallingEmulator**, injecting rigid schema instructions and formatting model responses back into standard `tool_calls`.
-4. **🔌 Universal Compatibility:**
-   - **OpenAI Compatible:** `/v1/chat/completions`, `/v1/models`, `/v1/images/generations`, `/v1/images/edits`, `/v1/audio/transcriptions`, `/v1/audio/speech`.
-   - **Anthropic Compatible:** `/v1/messages` translates Anthropic Messages API payloads and SSE streaming.
-   - **Direct Shortcuts:** `/image/:prompt`, `/text/:prompt`, `/text`.
-5. **📊 Transparency Headers:**
-   - `x-gateway-model-used`: exact model that satisfied the request.
-   - `x-gateway-attempts`: number of cascade steps executed.
-   - `x-gateway-fallback-chain`: sequence of models attempted.
-   - `x-gateway-latency-ms`: total processing duration in milliseconds.
-   - `x-gateway-tool-mode`: `native` or `emulated`.
-   - `x-gateway-search-performed`: `true` if live internet search was injected.
+Why pay for search or enter credit cards? We selected search and fetch providers that have **real free tiers (no credit card required)**:
+
+| Provider | Type | Free Tier | Setup | Credit Card? |
+|---|---|---|---|:---:|
+| **SearXNG** | Search | **100% Free ($0)**, Unlimited | Self-hosted via included [Docker Compose / Portainer](deploy/searxng/) | ❌ **No** |
+| **Jina Reader (`r.jina.ai`)** | Web Fetch | **100% Free ($0)**, Unlimited | No API key needed. Converts any webpage to clean Markdown | ❌ **No** |
+| **DuckDuckGo HTML** | Search | **100% Free ($0)**, Unlimited | Native edge scraper, no API key needed | ❌ **No** |
+| **Tavily Search** | Search | **1,000 queries/month free** | Get key at [tavily.com](https://tavily.com) | ❌ **No** |
+| **Google Serper** | Search | **2,500 free queries** | Get key at [serper.dev](https://serper.dev) | ❌ **No** |
+| **Firecrawl** | Web Scrape | **500 free scrape credits** | Get key at [firecrawl.dev](https://firecrawl.dev) | ❌ **No** |
+| **Pollinations Search** | Search | **Free via Pollinations** | `gemini-search` & `perplexity-fast` | ❌ **No** |
+
+> 🚫 **Excluded Providers:**
+> - **Brave Search API:** Excluded because it requires a mandatory $5 deposit and credit card upfront.
+> - **Perplexity API:** Excluded because it is paid per token/credit.
+> - **Google Programmable Search:** Excluded because it is complex, rate-limited, and SearXNG completely replaces it with superior privacy.
+
+### Configuring Search Slots (Up to 2 Search & 2 Fetch Providers)
+
+In your Cloudflare Worker environment variables or `.dev.vars`:
+
+```env
+# --- Search Slots ---
+SEARCH_PROVIDER_1_TYPE=searxng
+SEARCH_PROVIDER_1_URL=http://your-searxng-host:8080
+
+SEARCH_PROVIDER_2_TYPE=tavily
+SEARCH_PROVIDER_2_KEY=tvly-your_key_here
+
+# --- Web Fetch Slots ---
+FETCH_PROVIDER_1_TYPE=jina
+ENABLE_JINA_READER=true
+
+FETCH_PROVIDER_2_TYPE=firecrawl
+FETCH_PROVIDER_2_KEY=fc-your_key_here
+```
 
 ---
 
-## 💻 Usage Examples
+## 🐳 Self-Hosted SearXNG (Docker & Portainer Stack)
 
-### 1. OpenAI SDK (Python)
+Included in [deploy/searxng/](deploy/searxng/):
 
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="https://YOUR-WORKER.workers.dev/v1",
-    api_key="YOUR_AUTH_TOKEN"  # or your Pollinations sk_... key
-)
-
-response = client.chat.completions.create(
-    model="claude",
-    messages=[
-        {"role": "user", "content": "What are the latest updates on space exploration?"}
-    ],
-    extra_headers={
-        "x-fallback-models": "gemini-3-flash,openai-fast",
-        "x-web-search": "true"  # Triggers search delegation!
-    }
-)
-
-print(response.choices[0].message.content)
-```
-
-### 2. OpenAI SDK (TypeScript / Node.js)
-
-```typescript
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  baseURL: "https://YOUR-WORKER.workers.dev/v1",
-  apiKey: process.env.GATEWAY_AUTH_TOKEN,
-});
-
-const stream = await client.chat.completions.create({
-  model: "deepseek",
-  messages: [{ role: "user", content: "Write a high-performance LRU cache in Rust." }],
-  stream: true,
-});
-
-for await (const chunk of stream) {
-  process.stdout.write(chunk.choices[0]?.delta?.content || "");
-}
-```
-
-### 3. Anthropic Messages API Bridge
-
-```bash
-curl -X POST "https://YOUR-WORKER.workers.dev/v1/messages" \
-  -H "Authorization: Bearer YOUR_AUTH_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "claude",
-    "max_tokens": 1024,
-    "messages": [
-      {"role": "user", "content": "Explain quantum superposition simply."}
-    ]
-  }'
-```
+1. **Docker Compose:** Run `docker compose up -d` in `deploy/searxng/`.
+2. **Portainer Web UI:** Copy the contents of `deploy/searxng/portainer-stack.yml` into Portainer ➔ Stacks ➔ Add stack.
+3. Configure `SEARCH_PROVIDER_1_URL=http://YOUR_SERVER_IP:8080` in your Worker!
 
 ---
 
@@ -183,15 +146,51 @@ curl -X POST "https://YOUR-WORKER.workers.dev/v1/messages" \
 
 ## ✨ Visão Geral
 
-O **Pollin Uptime** é um gateway de IA serverless de alta disponibilidade criado para garantir **99.9% de uptime contínuo** sobre o ecossistema [Pollinations.ai](https://pollinations.ai).
+O **Pollin Uptime** é um gateway de IA serverless projetado para garantir **99.9% de uptime contínuo** sobre a infraestrutura da [Pollinations.ai](https://pollinations.ai).
 
-Desenvolvido com **Cloudflare Workers**, **Hono** e **TypeScript**, ele roda na borda global (edge) da Cloudflare com inicialização quase instantânea. Ele blinda suas credenciais upstream, intercepta quedas e roteia requisições através de uma **cascata tripla de fallback**, com suporte a **emulação de tools** e **busca web com retorno ao modelo de origem (Search-Augmented Generation)**.
+Conta com uma **cascata de 4 camadas de resiliência** (Modelo Principal ➔ Fallback 1 ➔ Fallback 2 ➔ Provedor Externo OpenAI-Compatible), emulação ReAct de tools e **desvio inteligente de busca web com Free Tier Real** (SearXNG, Jina Reader, Tavily, Serper, DuckDuckGo).
+
+---
+
+## 🗺️ Matriz de Endpoints
+
+| Método | Endpoint | Compatibilidade | Descrição |
+|---|---|---|---|
+| `GET` | `/` | Gateway | Health check e descoberta de capacidades |
+| `GET` | `/v1/models` | OpenAI-style | Catálogo dinâmico com cache em KV |
+| `POST` | `/v1/chat/completions` | OpenAI | Chat, visão e streaming SSE com cascata de 4 níveis |
+| `POST` | `/v1/responses` | OpenAI | Responses API com `output[]` e reasoning |
+| `POST` | `/v1/messages` | Anthropic | Tradução da Messages API e streaming SSE |
+| `POST` | `/v1/images/generations` | OpenAI | Geração de imagens com fallback |
+| `POST` | `/v1/images/edits` | OpenAI | Edição de imagens com prompt e referência |
+| `POST` | `/v1/audio/speech` | OpenAI | Text-to-speech multi-engine |
+| `POST` | `/v1/audio/transcriptions` | OpenAI | Transcrição de áudio (Whisper) |
+| `POST` | `/v1/audio/translations` | OpenAI | Tradução de áudio para inglês |
+| `POST` | `/v1/search` | Gateway | Endpoint direto de busca web (SearXNG / Tavily / Serper) |
+| `POST` | `/v1/web/fetch` | Gateway | Endpoint direto de extração de URL em Markdown (Jina / Firecrawl) |
+
+---
+
+## 🔍 Busca Web & RAG: Provedores com Free Tier Real (Sem Cartão)
+
+| Provedor | Função | Cota Gratuita | Como Configurar | Cartão de Crédito? |
+|---|---|---|---|:---:|
+| **SearXNG** | Busca Web | **100% Grátis ($0)**, Ilimitado | Self-hosted via [Docker Compose / Portainer](deploy/searxng/) | ❌ **Não** |
+| **Jina Reader (`r.jina.ai`)** | Leitura de URL | **100% Grátis ($0)**, Ilimitado | Sem chave. Converte páginas web em Markdown limpo | ❌ **Não** |
+| **DuckDuckGo HTML** | Busca Web | **100% Grátis ($0)**, Ilimitado | Scraping direto no edge, sem chave de API | ❌ **Não** |
+| **Tavily Search** | Busca Web | **1.000 buscas/mês grátis** | Chave gratuita em [tavily.com](https://tavily.com) | ❌ **Não** |
+| **Google Serper** | Busca Web | **2.500 buscas grátis** | Chave gratuita em [serper.dev](https://serper.dev) | ❌ **Não** |
+| **Firecrawl** | Web Scrape | **500 créditos grátis** | Chave gratuita em [firecrawl.dev](https://firecrawl.dev) | ❌ **Não** |
+| **Pollinations Search** | Busca Web | **Grátis via Pollinations** | Fallback nativo: `gemini-search` e `perplexity-fast` | ❌ **Não** |
+
+> 🚫 **Serviços Excluídos:**
+> - **Brave Search API:** Excluído por exigir depósito de $5 e cartão de crédito.
+> - **Perplexity API:** Excluído por ser cobrado por token/crédito.
+> - **Google Programmable Search:** Excluído por ser obsoleto e o SearXNG fazer a mesma função com mais privacidade e flexibilidade.
 
 ---
 
 ## 🚀 Deploy em 1 Clique na Cloudflare
-
-Implante sua própria instância em menos de 1 minuto diretamente na Cloudflare:
 
 <div align="center">
 
@@ -199,28 +198,28 @@ Implante sua própria instância em menos de 1 minuto diretamente na Cloudflare:
 
 </div>
 
-### 🧩 Formulário de Configuração do Deploy
+### 🧩 Variáveis de Configuração
 
-| Campo | Exemplo Seguro | Descrição |
+| Variável | Exemplo Seguro | Descrição |
 |---|---|---|
-| **Project name** | `pollin-uptime` | Nome da aplicação no Workers e URL padrão `workers.dev`. |
-| **RATE_LIMIT_STORE** | `pollin-rate-limit` | Namespace KV para controle de taxa e proteção contra abusos. |
-| **CACHE_STORE** | `pollin-cache` | Namespace KV para cache do catálogo dinâmico de modelos. |
-| **`POLLINATIONS_API_KEY`** | Sua chave `sk_...` | Chave secreta da Pollinations obtida em [enter.pollinations.ai](https://enter.pollinations.ai/keys). *(Opcional se usar BYOP)* |
-| **`AUTH_TOKEN`** | *(Sua senha segura)* | Token mestre privado que seus clientes enviarão para acessar o gateway. |
-| **`DEFAULT_FALLBACK_1`** | `gemini-3-flash` | 1º modelo de fallback caso o primário falhe. |
-| **`DEFAULT_FALLBACK_2`** | `openai-fast` | 2º modelo de fallback. |
-| **`DEFAULT_FALLBACK_3`** | `mistral` | 3º modelo de segurança final. |
+| **`RATE_LIMIT_STORE`** | `pollin-rate-limit` | Namespace KV para controle de taxa. |
+| **`CACHE_STORE`** | `pollin-cache` | Namespace KV para cache dinâmico de catálogo. |
+| **`POLLINATIONS_API_KEY`** | Sua chave `sk_...` | Chave secreta da Pollinations ([enter.pollinations.ai](https://enter.pollinations.ai/keys)). |
+| **`AUTH_TOKEN`** | *(Sua senha segura)* | Token mestre privado para seus clientes acessarem o gateway. |
+| **`EXTERNAL_FALLBACK_URL`** | `https://api.groq.com/openai/v1` | Provedor de emergência (Groq, OpenRouter, CheaperInference). |
+| **`EXTERNAL_FALLBACK_KEY`** | `gsk_...` | Chave de API do provedor externo. |
+| **`EXTERNAL_FALLBACK_MODEL`** | `llama-3.3-70b-versatile` | Modelo de contingência final. |
+| **`SEARCH_PROVIDER_1_TYPE`** | `searxng` ou `tavily` | 1º motor de busca web. |
+| **`SEARCH_PROVIDER_1_URL`** | `http://seu-ip:8080` | URL do seu SearXNG (se usar SearXNG). |
+| **`SEARCH_PROVIDER_1_KEY`** | `tvly-...` | Chave de API (se usar Tavily ou Serper). |
 
 ---
 
-## 🛠️ Recursos Principais
+## 🐳 Suba seu próprio SearXNG (Docker Compose e Portainer)
 
-- **🔄 Cascata Tripla de Fallback:** Chaveamento automático se o modelo primário sofrer erro 429 (fila cheia / rate limit), 5xx, timeout ou rejeição de ferramentas.
-- **🌐 Desvio Inteligente de Busca Web (SAG):** A sub-tarefa de pesquisa é desviada para o modelo de busca mais rápido e barato (`gemini-search` com fallback em `perplexity-fast`), e os dados obtidos são injetados no contexto do **modelo de origem escolhido pelo usuário** (`deepseek`, `claude`, etc.).
-- **🧩 Emulador de Ferramentas Híbrido:** Se o modelo escolhido não tiver suporte nativo a `tools` na Pollinations, o gateway aciona automaticamente o `ToolCallingEmulator` ReAct, garantindo respostas estruturadas em `tool_calls` em qualquer modelo.
-- **🔌 Compatibilidade Dupla:** Padrão OpenAI (`/v1/chat/completions`, `/v1/models`, imagens e áudio) e Anthropic Messages (`/v1/messages`).
-- **📊 Headers de Transparência:** Respostas acompanhadas de `x-gateway-model-used`, `x-gateway-attempts`, `x-gateway-fallback-chain` e `x-gateway-latency-ms`.
+Na pasta [deploy/searxng/](deploy/searxng/):
+1. **Via Docker Compose:** `cd deploy/searxng && docker compose up -d`.
+2. **Via Portainer Web:** Copie o arquivo [portainer-stack.yml](deploy/searxng/portainer-stack.yml) e cole na aba Stacks do Portainer.
 
 ---
 

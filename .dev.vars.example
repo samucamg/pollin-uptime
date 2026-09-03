@@ -1,11 +1,46 @@
-POLLINATIONS_API_KEY=sk_your_pollinations_api_key_here
-AUTH_TOKEN=your_gateway_master_password_here
+# ==============================================================================
+# pollin-uptime: Variáveis de Ambiente e Segredos (Cloudflare Workers)
+# ==============================================================================
 
-# Última camada de resiliência externa (Opcional - Ex: Groq, OpenRouter, CheaperInference, DeepSeek)
+# 1. Autenticação & Pollinations Upstream
+# Obtenha sua chave secreta em: https://enter.pollinations.ai/keys
+POLLINATIONS_API_KEY=sk_your_pollinations_key_here
+
+# Senha mestre privada do seu gateway (usada pelos seus clientes SDK/n8n/Cursor)
+AUTH_TOKEN=your_secure_gateway_master_password_here
+
+# ------------------------------------------------------------------------------
+# 2. Última Camada de Resiliência Externa (Qualquer provedor OpenAI-Compatible)
+# Se toda a Pollinations cair, o gateway aciona este endpoint de emergência!
+# Exemplos gratuitos / acessíveis: Groq, OpenRouter, CheaperInference, Together AI, DeepSeek
+# ------------------------------------------------------------------------------
 EXTERNAL_FALLBACK_URL=https://api.groq.com/openai/v1
-EXTERNAL_FALLBACK_KEY=gsk_your_external_api_key
+EXTERNAL_FALLBACK_KEY=gsk_your_external_provider_key_here
 EXTERNAL_FALLBACK_MODEL=llama-3.3-70b-versatile
 
-# Motores de Busca & RAG
-SEARXNG_URL=https://search.br5.com.br
+# ------------------------------------------------------------------------------
+# 3. Motores de Busca Web com Free Tier Real (Sem Cartão de Crédito)
+# Configure até 2 provedores de busca. Se falharem, usa o fallback nativo da Pollinations!
+# Tipos suportados: searxng, tavily, serper, duckduckgo
+# ------------------------------------------------------------------------------
+
+# Provedor de Busca 1: Exemplo SearXNG (Suba com o docker compose na pasta deploy/searxng)
+SEARCH_PROVIDER_1_TYPE=searxng
+SEARCH_PROVIDER_1_URL=http://your-searxng-host:8080
+SEARCH_PROVIDER_1_KEY=
+
+# Provedor de Busca 2: Exemplo Tavily (1.000 buscas grátis/mês em https://tavily.com)
+SEARCH_PROVIDER_2_TYPE=tavily
+SEARCH_PROVIDER_2_KEY=tvly-your_tavily_key_here
+SEARCH_PROVIDER_2_URL=
+
+# ------------------------------------------------------------------------------
+# 4. Provedores de Web Fetch & Scraping de URLs
+# ------------------------------------------------------------------------------
+# Fetch 1: Jina Reader (100% Gratuito $0, sem chave, converte qualquer URL para Markdown)
+FETCH_PROVIDER_1_TYPE=jina
 ENABLE_JINA_READER=true
+
+# Fetch 2: Firecrawl (Opcional - 500 créditos grátis em https://firecrawl.dev)
+FETCH_PROVIDER_2_TYPE=firecrawl
+FETCH_PROVIDER_2_KEY=fc-your_firecrawl_key_here

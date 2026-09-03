@@ -3,48 +3,28 @@ import { DEFAULT_SEARCH_FALLBACKS } from "../constants/models";
 import type { ChatCompletionRequest, ChatMessage, EnvBindings } from "../types";
 import { PollinationsClient } from "./pollinations";
 
+export interface SearchResultItem {
+  title: string;
+  url: string;
+  content: string;
+}
+
+export interface SearchExecutionResult {
+  success: boolean;
+  provider: string;
+  query: string;
+  results: SearchResultItem[];
+  summary: string;
+}
+
+export interface FetchExecutionResult {
+  success: boolean;
+  provider: string;
+  url: string;
+  content: string;
+}
+
 export class WebSearchRouter {
-  /**
-   * Identifica URLs em mensagens para interceptação com Jina Reader ($0)
-   */
-  static extractUrlFromMessages(messages: ChatMessage[]): string | null {
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-    if (!lastUserMsg || typeof lastUserMsg.content !== "string") return null;
-
-    const urlMatch = lastUserMsg.content.match(
-      /https?:\/\/[^\s<>"{}|\\^~[\]`]+/i,
-    );
-    return urlMatch ? urlMatch[0] : null;
-  }
-
-  /**
-   * Busca conteúdo limpo de URLs via Jina Reader (r.jina.ai - Gratuito $0)
-   */
-  static async fetchWithJinaReader(
-    targetUrl: string,
-    timeoutMs: number = 10000,
-  ): Promise<string | null> {
-    try {
-      const jinaUrl = `https://r.jina.ai/${targetUrl}`;
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeoutMs);
-
-      const res = await fetch(jinaUrl, {
-        headers: { Accept: "text/plain" },
-        signal: controller.signal,
-      });
-      clearTimeout(id);
-
-      if (res.ok) {
-        const text = await res.text();
-        return text.slice(0, 15000); // Limita tamanho para caber no contexto
-      }
-    } catch (err) {
-      console.warn("Jina Reader fetch failed:", err);
-    }
-    return null;
-  }
-
   /**
    * Identifica se a requisição precisa de busca na Web
    */
@@ -94,15 +74,33 @@ export class WebSearchRouter {
   }
 
   /**
-   * Executa busca no SearXNG se configurado
+   * Identifica URLs em mensagens para leitura / web fetch
    */
-  static async searchWithSearXNG(
-    searxngUrl: string,
+  static extractUrlFromMessages(messages: ChatMessage[]): string | null {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (!lastUserMsg || typeof lastUserMsg.content !== "string") return null;
+
+    const urlMatch = lastUserMsg.content.match(
+      /https?:\/\/[^\s<>"{}|\\^~[\]`]+/i,
+    );
+    return urlMatch ? urlMatch[0] : null;
+  }
+
+  // -------------------------------------------------------------
+  // PROVEDORES DE BUSCA COM FREE TIER REAL
+  // -------------------------------------------------------------
+
+  /**
+   * 1. SearXNG Self-Hosted (100% Gratuito $0, Ilimitado, sem cartão)
+   */
+  static async searchSearXNG(
+    url: string,
     query: string,
     timeoutMs: number = 8000,
-  ): Promise<string | null> {
+  ): Promise<SearchResultItem[] | null> {
+    if (!url) return null;
     try {
-      const endpoint = `${searxngUrl.replace(/\/+$/, "")}/search?q=${encodeURIComponent(query)}&format=json`;
+      const endpoint = `${url.replace(/\/+$/, "")}/search?q=${encodeURIComponent(query)}&format=json`;
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -112,10 +110,11 @@ export class WebSearchRouter {
       if (res.ok) {
         const data: any = await res.json();
         if (Array.isArray(data.results) && data.results.length > 0) {
-          const topResults = data.results
-            .slice(0, 5)
-            .map((r: any) => `- [${r.title}](${r.url}): ${r.content || ""}`);
-          return topResults.join("\n\n");
+          return data.results.slice(0, 5).map((r: any) => ({
+            title: r.title || "Untitled",
+            url: r.url || "",
+            content: r.content || "",
+          }));
         }
       }
     } catch (err) {
@@ -125,77 +124,223 @@ export class WebSearchRouter {
   }
 
   /**
-   * Executa a busca delegada no modelo mais barato com fallback
+   * 2. Tavily Search (Free Tier Real: 1.000 requisições/mês sem cartão)
    */
-  static async executeSearch(
-    env: EnvBindings,
+  static async searchTavily(
+    apiKey: string,
     query: string,
-    apiKey?: string,
-  ): Promise<{ searchSummary: string; modelUsed: string; success: boolean }> {
-    // 0. Tenta Provedor Externo Dedicado de Busca se configurado
-    if (env.EXTERNAL_SEARCH_URL && env.EXTERNAL_SEARCH_KEY) {
-      try {
-        const extEndpoint = `${env.EXTERNAL_SEARCH_URL.replace(/\/+$/, "")}/chat/completions`;
-        const extModel = env.EXTERNAL_SEARCH_MODEL || "sonar";
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 12000);
+    timeoutMs: number = 8000,
+  ): Promise<SearchResultItem[] | null> {
+    if (!apiKey) return null;
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
 
-        const res = await fetch(extEndpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${env.EXTERNAL_SEARCH_KEY}`,
-          },
-          body: JSON.stringify({
-            model: extModel,
-            messages: [
-              {
-                role: "user",
-                content: `Pesquise e resuma fatos recentes sobre: "${query}". Seja objetivo e cite fontes.`,
-              },
-            ],
-            temperature: 0.2,
-            max_tokens: 800,
-          }),
-          signal: controller.signal,
-        });
-        clearTimeout(id);
+      const res = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key: apiKey,
+          query,
+          search_depth: "basic",
+          max_results: 5,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(id);
 
-        if (res.ok) {
-          const data: any = await res.json();
-          const content = data.choices?.[0]?.message?.content;
-          if (content && content.trim().length > 20) {
-            return {
-              searchSummary: content.trim(),
-              modelUsed: `${extModel} (external-search)`,
-              success: true,
-            };
+      if (res.ok) {
+        const data: any = await res.json();
+        if (Array.isArray(data.results) && data.results.length > 0) {
+          return data.results.map((r: any) => ({
+            title: r.title || "Untitled",
+            url: r.url || "",
+            content: r.content || "",
+          }));
+        }
+      }
+    } catch (err) {
+      console.warn("Tavily search error:", err);
+    }
+    return null;
+  }
+
+  /**
+   * 3. Google Serper (Free Tier Real: 2.500 buscas grátis na criação da conta sem cartão)
+   */
+  static async searchSerper(
+    apiKey: string,
+    query: string,
+    timeoutMs: number = 8000,
+  ): Promise<SearchResultItem[] | null> {
+    if (!apiKey) return null;
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: {
+          "X-API-KEY": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ q: query, num: 5 }),
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+
+      if (res.ok) {
+        const data: any = await res.json();
+        if (Array.isArray(data.organic) && data.organic.length > 0) {
+          return data.organic.slice(0, 5).map((r: any) => ({
+            title: r.title || "Untitled",
+            url: r.link || "",
+            content: r.snippet || "",
+          }));
+        }
+      }
+    } catch (err) {
+      console.warn("Google Serper search error:", err);
+    }
+    return null;
+  }
+
+  /**
+   * 4. DuckDuckGo HTML (100% Gratuito $0, Edge Fetching sem chave de API)
+   */
+  static async searchDuckDuckGo(
+    query: string,
+    timeoutMs: number = 8000,
+  ): Promise<SearchResultItem[] | null> {
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch("https://html.duckduckgo.com/html/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+        body: `q=${encodeURIComponent(query)}`,
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+
+      if (res.ok) {
+        const html = await res.text();
+        const results: SearchResultItem[] = [];
+        const regex =
+          /<a class="result__url" href="([^"]+)".*?<a class="result__snippet[^>]*>([\s\S]*?)<\/a>/g;
+        let match = regex.exec(html);
+        while (match !== null && results.length < 5) {
+          const rawUrl = match[1].replace(
+            /\/\/duckduckgo\.com\/l\/\?uddg=/,
+            "",
+          );
+          const decodedUrl = decodeURIComponent(rawUrl.split("&")[0]);
+          const snippet = match[2].replace(/<[^>]+>/g, "").trim();
+          if (decodedUrl && snippet) {
+            results.push({
+              title: "Web Result",
+              url: decodedUrl,
+              content: snippet,
+            });
           }
         }
-      } catch (err) {
-        console.warn(
-          "External web search provider failed, falling back to next provider:",
-          err,
-        );
+
+        if (results.length > 0) return results;
       }
+    } catch (err) {
+      console.warn("DuckDuckGo search error:", err);
+    }
+    return null;
+  }
+
+  /**
+   * Despacha a busca para um slot específico (Slot 1 ou Slot 2)
+   */
+  private static async dispatchSearchSlot(
+    type?: string,
+    url?: string,
+    key?: string,
+    query: string = "",
+  ): Promise<{ results: SearchResultItem[]; provider: string } | null> {
+    if (!type) return null;
+
+    if (type === "searxng" && url) {
+      const res = await WebSearchRouter.searchSearXNG(url, query);
+      if (res && res.length > 0) return { results: res, provider: "searxng" };
     }
 
-    // 1. Tenta SearXNG se configurado
-    if (env.SEARXNG_URL) {
-      const searxngResults = await WebSearchRouter.searchWithSearXNG(
-        env.SEARXNG_URL,
+    if (type === "tavily" && key) {
+      const res = await WebSearchRouter.searchTavily(key, query);
+      if (res && res.length > 0) return { results: res, provider: "tavily" };
+    }
+
+    if (type === "serper" && key) {
+      const res = await WebSearchRouter.searchSerper(key, query);
+      if (res && res.length > 0) return { results: res, provider: "serper" };
+    }
+
+    if (type === "duckduckgo") {
+      const res = await WebSearchRouter.searchDuckDuckGo(query);
+      if (res && res.length > 0)
+        return { results: res, provider: "duckduckgo" };
+    }
+
+    return null;
+  }
+
+  /**
+   * Executa a busca através dos 2 slots configurados + Fallback nativo Pollinations
+   */
+  static async search(
+    env: EnvBindings,
+    query: string,
+  ): Promise<SearchExecutionResult> {
+    // 1. Tenta Provedor de Busca 1
+    const slot1 = await WebSearchRouter.dispatchSearchSlot(
+      env.SEARCH_PROVIDER_1_TYPE,
+      env.SEARCH_PROVIDER_1_URL,
+      env.SEARCH_PROVIDER_1_KEY,
+      query,
+    );
+    if (slot1) {
+      const summary = slot1.results
+        .map((r) => `- [${r.title}](${r.url}): ${r.content}`)
+        .join("\n\n");
+      return {
+        success: true,
+        provider: slot1.provider,
         query,
-      );
-      if (searxngResults) {
-        return {
-          searchSummary: searxngResults,
-          modelUsed: "searxng-search",
-          success: true,
-        };
-      }
+        results: slot1.results,
+        summary,
+      };
     }
 
-    // 2. Desvia para modelo de busca mais barato da Pollinations (gemini-search / perplexity)
+    // 2. Tenta Provedor de Busca 2
+    const slot2 = await WebSearchRouter.dispatchSearchSlot(
+      env.SEARCH_PROVIDER_2_TYPE,
+      env.SEARCH_PROVIDER_2_URL,
+      env.SEARCH_PROVIDER_2_KEY,
+      query,
+    );
+    if (slot2) {
+      const summary = slot2.results
+        .map((r) => `- [${r.title}](${r.url}): ${r.content}`)
+        .join("\n\n");
+      return {
+        success: true,
+        provider: slot2.provider,
+        query,
+        results: slot2.results,
+        summary,
+      };
+    }
+
+    // 3. Fallback Final: Modelos de Busca Nativos da Pollinations (gemini-search / perplexity-fast)
     const searchModels = [
       env.DEFAULT_SEARCH_MODEL || DEFAULT_SEARCH_FALLBACKS[0],
       env.SEARCH_FALLBACK_MODEL || DEFAULT_SEARCH_FALLBACKS[1],
@@ -210,14 +355,14 @@ export class WebSearchRouter {
 
     for (const searchModel of searchModels) {
       try {
-        const searchPrompt = `Pesquise e resuma de forma concisa e factual as informações mais recentes e precisas da internet sobre: "${query}". Inclua fontes ou datas se aplicável.`;
+        const searchPrompt = `Pesquise e resuma de forma concisa e factual as informações mais recentes da internet sobre: "${query}". Seja objetivo e cite fontes se houver.`;
 
         const res = await client.request<{
           choices?: Array<{ message?: { content?: string } }>;
         }>({
           path: "/v1/chat/completions",
           method: "POST",
-          apiKey,
+          apiKey: env.POLLINATIONS_API_KEY,
           timeoutMs,
           body: {
             model: searchModel,
@@ -230,43 +375,204 @@ export class WebSearchRouter {
         const content = res.data?.choices?.[0]?.message?.content;
         if (content && content.trim().length > 20) {
           return {
-            searchSummary: content.trim(),
-            modelUsed: searchModel,
             success: true,
+            provider: `pollinations:${searchModel}`,
+            query,
+            results: [
+              {
+                title: `Result via ${searchModel}`,
+                url: "https://pollinations.ai",
+                content: content.trim(),
+              },
+            ],
+            summary: content.trim(),
           };
         }
       } catch (err) {
         console.warn(
-          `Web search failed on model ${searchModel}, trying next fallback:`,
+          `Pollinations native search model ${searchModel} failed, trying next...`,
           err,
         );
       }
     }
 
     return {
-      searchSummary: "",
-      modelUsed: "none",
       success: false,
+      provider: "none",
+      query,
+      results: [],
+      summary: "",
+    };
+  }
+
+  // -------------------------------------------------------------
+  // PROVEDORES DE WEB FETCH / SCRAPE (Jina Reader $0 e Firecrawl)
+  // -------------------------------------------------------------
+
+  /**
+   * 1. Jina Reader (100% Gratuito $0, sem chave, Markdown limpo)
+   */
+  static async fetchJinaReader(
+    targetUrl: string,
+    timeoutMs: number = 10000,
+  ): Promise<string | null> {
+    try {
+      const endpoint = `https://r.jina.ai/${targetUrl}`;
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch(endpoint, {
+        headers: { Accept: "text/plain" },
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+
+      if (res.ok) {
+        const text = await res.text();
+        return text.slice(0, 15000);
+      }
+    } catch (err) {
+      console.warn("Jina Reader fetch error:", err);
+    }
+    return null;
+  }
+
+  /**
+   * 2. Firecrawl (Free Tier: 500 créditos)
+   */
+  static async fetchFirecrawl(
+    apiKey: string,
+    targetUrl: string,
+    customBaseUrl?: string,
+    timeoutMs: number = 12000,
+  ): Promise<string | null> {
+    if (!apiKey) return null;
+    try {
+      const baseUrl = (customBaseUrl || "https://api.firecrawl.dev").replace(
+        /\/+$/,
+        "",
+      );
+      const endpoint = `${baseUrl}/v1/scrape`;
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ url: targetUrl, formats: ["markdown"] }),
+        signal: controller.signal,
+      });
+      clearTimeout(id);
+
+      if (res.ok) {
+        const data: any = await res.json();
+        if (data.data?.markdown) {
+          return data.data.markdown.slice(0, 15000);
+        }
+      }
+    } catch (err) {
+      console.warn("Firecrawl scrape error:", err);
+    }
+    return null;
+  }
+
+  /**
+   * Executa web fetch através dos 2 slots configurados
+   */
+  static async fetchUrl(
+    env: EnvBindings,
+    targetUrl: string,
+  ): Promise<FetchExecutionResult> {
+    // 1. Tenta Fetch Slot 1 (Padrão Jina Reader $0 se não configurado)
+    const type1 = env.FETCH_PROVIDER_1_TYPE || "jina";
+    if (type1 === "jina") {
+      const text = await WebSearchRouter.fetchJinaReader(targetUrl);
+      if (text)
+        return {
+          success: true,
+          provider: "jina-reader",
+          url: targetUrl,
+          content: text,
+        };
+    } else if (type1 === "firecrawl" && env.FETCH_PROVIDER_1_KEY) {
+      const text = await WebSearchRouter.fetchFirecrawl(
+        env.FETCH_PROVIDER_1_KEY,
+        targetUrl,
+        env.FETCH_PROVIDER_1_URL,
+      );
+      if (text)
+        return {
+          success: true,
+          provider: "firecrawl",
+          url: targetUrl,
+          content: text,
+        };
+    }
+
+    // 2. Tenta Fetch Slot 2
+    if (env.FETCH_PROVIDER_2_TYPE === "firecrawl" && env.FETCH_PROVIDER_2_KEY) {
+      const text = await WebSearchRouter.fetchFirecrawl(
+        env.FETCH_PROVIDER_2_KEY,
+        targetUrl,
+        env.FETCH_PROVIDER_2_URL,
+      );
+      if (text)
+        return {
+          success: true,
+          provider: "firecrawl",
+          url: targetUrl,
+          content: text,
+        };
+    } else if (env.FETCH_PROVIDER_2_TYPE === "jina") {
+      const text = await WebSearchRouter.fetchJinaReader(targetUrl);
+      if (text)
+        return {
+          success: true,
+          provider: "jina-reader",
+          url: targetUrl,
+          content: text,
+        };
+    }
+
+    // 3. Fallback Direto Jina Reader
+    const fallbackText = await WebSearchRouter.fetchJinaReader(targetUrl);
+    if (fallbackText) {
+      return {
+        success: true,
+        provider: "jina-reader",
+        url: targetUrl,
+        content: fallbackText,
+      };
+    }
+
+    return {
+      success: false,
+      provider: "none",
+      url: targetUrl,
+      content: "",
     };
   }
 
   /**
-   * Injeta o contexto de busca factual na mensagem antes de enviar para o modelo original
+   * Injeta os dados da busca no contexto da mensagem para o modelo de origem
    */
   static injectSearchResults(
     messages: ChatMessage[],
     searchSummary: string,
-    searchModel: string,
+    provider: string,
   ): ChatMessage[] {
     if (!searchSummary) return messages;
 
     const contextMessage: ChatMessage = {
       role: "system",
-      content: `=== INFORMAÇÕES DA WEB EM TEMPO REAL (PESQUISA ATUALIZADA) ===
-Dados obtidos via busca na web (${searchModel}):
+      content: `=== INFORMAÇÕES DA WEB EM TEMPO REAL (BUSCA: ${provider}) ===
+Resultados obtidos:
 ${searchSummary}
 ==============================================================
-Instruções: Use os dados acima para enriquecer sua resposta com fatos atualizados, mantendo seu próprio estilo e raciocínio.`,
+Instruções: Utilize os fatos e dados acima para responder de forma atualizada e precisa, mantendo seu próprio estilo e capacidade analítica.`,
     };
 
     const cloned = [...messages];

@@ -39,3 +39,22 @@ export async function handleAudioSpeech(c: Context<HonoEnv>) {
     headers: response.headers,
   });
 }
+
+export async function handleAudioTranslations(c: Context<HonoEnv>) {
+  const formData = await c.req.formData();
+  const apiKey = c.get("apiKey");
+
+  const client = new PollinationsClient(c.env);
+  const { response } = await client.fetchRaw({
+    path: "/v1/audio/translations",
+    method: "POST",
+    body: formData,
+    apiKey,
+    timeoutMs: 45000,
+  });
+
+  return new Response(response.body, {
+    status: response.status,
+    headers: response.headers,
+  });
+}

@@ -30,29 +30,27 @@ export async function handleChatCompletion(c: Context<HonoEnv>) {
 
   // ETAPA 1: Desvio de Busca Web Inteligente (Search-Augmented Generation)
   let searchPerformed = false;
+  let searchProviderUsed = "";
   if (WebSearchRouter.shouldPerformSearch(body, headerWebSearch)) {
     const query = WebSearchRouter.extractSearchQuery(body.messages);
     if (query) {
       console.info(
-        `Web search requested for query: "${query}". Delegating to fast search model...`,
+        `Web search requested: "${query}". Delegating to search engine slot...`,
       );
-      const searchResult = await WebSearchRouter.executeSearch(
-        c.env,
-        query,
-        apiKey,
-      );
-      if (searchResult.success) {
+      const searchResult = await WebSearchRouter.search(c.env, query);
+      if (searchResult.success && searchResult.summary) {
         body.messages = WebSearchRouter.injectSearchResults(
           body.messages,
-          searchResult.searchSummary,
-          searchResult.modelUsed,
+          searchResult.summary,
+          searchResult.provider,
         );
         searchPerformed = true;
+        searchProviderUsed = searchResult.provider;
       }
     }
   }
 
-  // ETAPA 2: Cascata de 3 Modelos de Fallback
+  // ETAPA 2: Cascata de 3 Modelos de Fallback + Provedor Externo
   const cascade = new CascadeManager(c.env);
 
   // Se stream = true
@@ -76,6 +74,9 @@ export async function handleChatCompletion(c: Context<HonoEnv>) {
       GATEWAY_HEADERS.SEARCH_PERFORMED,
       searchPerformed ? "true" : "false",
     );
+    if (searchProviderUsed) {
+      headers.set("x-gateway-search-provider", searchProviderUsed);
+    }
 
     return new Response(streamResult.response.body, {
       status: streamResult.response.status,
@@ -102,6 +103,9 @@ export async function handleChatCompletion(c: Context<HonoEnv>) {
     GATEWAY_HEADERS.SEARCH_PERFORMED,
     searchPerformed ? "true" : "false",
   );
+  if (searchProviderUsed) {
+    c.header("x-gateway-search-provider", searchProviderUsed);
+  }
 
   return c.json(cascadeResult.response);
 }

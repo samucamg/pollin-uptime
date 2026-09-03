@@ -8,7 +8,6 @@
   },
   "vars": {
     "POLLINATIONS_API_BASE_URL": "https://gen.pollinations.ai",
-    "AUTH_TOKEN": "",
     "DEFAULT_FALLBACK_1": "gemini-3-flash",
     "DEFAULT_FALLBACK_2": "openai-fast",
     "DEFAULT_FALLBACK_3": "mistral",
@@ -16,13 +15,6 @@
     "SEARCH_FALLBACK_MODEL": "perplexity-fast",
     "SEARCH_TIMEOUT_MS": "15000",
     "CASCADE_TIMEOUT_MS": "30000",
-    "EXTERNAL_FALLBACK_URL": "",
-    "EXTERNAL_FALLBACK_KEY": "",
-    "EXTERNAL_FALLBACK_MODEL": "",
-    "EXTERNAL_SEARCH_URL": "",
-    "EXTERNAL_SEARCH_KEY": "",
-    "EXTERNAL_SEARCH_MODEL": "",
-    "SEARXNG_URL": "https://search.br5.com.br",
     "ENABLE_JINA_READER": "true"
   },
   "kv_namespaces": [
