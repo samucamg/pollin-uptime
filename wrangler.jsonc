@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pollin-uptime",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-07-25",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "POLLINATIONS_API_BASE_URL": "https://gen.pollinations.ai",
+    "AUTH_TOKEN": "",
+    "DEFAULT_FALLBACK_1": "gemini-3-flash",
+    "DEFAULT_FALLBACK_2": "openai-fast",
+    "DEFAULT_FALLBACK_3": "mistral",
+    "DEFAULT_SEARCH_MODEL": "gemini-search",
+    "SEARCH_FALLBACK_MODEL": "perplexity-fast",
+    "SEARCH_TIMEOUT_MS": "15000",
+    "CASCADE_TIMEOUT_MS": "30000"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT_STORE"
+    },
+    {
+      "binding": "CACHE_STORE"
+    }
+  ]
+}
