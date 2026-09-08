@@ -34,7 +34,9 @@ export async function getModelRegistry(
     const rawList = Array.isArray(res.data) ? res.data : [];
     const models: ModelItem[] = rawList.map((m: any) => {
       const id = typeof m === "string" ? m : m.name || m.id || "unknown";
-      const meta = KNOWN_MODELS_METADATA[id] || {
+      const meta = [id, ...(m.aliases || [])]
+        .map((name) => KNOWN_MODELS_METADATA[name])
+        .find(Boolean) || {
         type: "chat",
         supports_tools: false,
         supports_search: false,
