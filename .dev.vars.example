@@ -1,29 +1,27 @@
 # ==============================================================================
-# pollin-uptime: Chaves de API e Segredos (Cloudflare Workers)
+# pollin-uptime: Chave Secreta Upstream (Cloudflare Workers Deploy)
 # ==============================================================================
-# Apenas chaves (keys) e senhas mestras devem ser configuradas como segredo!
-# URLs, modelos e seleções de tipo são configurados em wrangler.jsonc (vars).
-# Todos os campos abaixo são opcionais e podem ser deixados em branco no formulário.
+# O botão "Deploy to Cloudflare" trata TODAS as variáveis deste arquivo como
+# campos de senha OBRIGATÓRIOS. Por isso, mantemos aqui APENAS a chave principal
+# da Pollinations.
+#
+# Obtenha sua chave em: https://enter.pollinations.ai/keys
 # ==============================================================================
 
-# 1. Chave de API Upstream da Pollinations (Opcional - https://enter.pollinations.ai/keys)
-# Se não configurada, o gateway opera no modo gratuito/público ou aceita chaves dos clientes.
 POLLINATIONS_API_KEY=
 
-# 2. Senha mestre privada do seu gateway (Opcional)
-# Protege o endpoint contra acessos externos não autorizados (Cursor / n8n / SDK).
-# Se deixado em branco, qualquer requisição é aceita.
-AUTH_TOKEN=
-
-# 3. Chave do Provedor de Fallback Externo (Opcional - Groq, OpenRouter, Together AI, etc.)
-# Usado apenas se preenchido juntamente com EXTERNAL_FALLBACK_URL em wrangler.jsonc.
-EXTERNAL_FALLBACK_KEY=
-
-# 4. Chaves de API para Provedores de Busca Web (Opcionais - Tavily, Serper)
-# Deixe em branco se utilizar motores gratuitos que não necessitam de chave (DuckDuckGo, SearXNG).
-SEARCH_PROVIDER_1_KEY=
-SEARCH_PROVIDER_2_KEY=
-
-# 5. Chave de API para Provedor de Web Scraping (Opcional - Firecrawl)
-# Deixe em branco se utilizar o Jina Reader ($0 gratuito sem necessidade de chave).
-FETCH_PROVIDER_2_KEY=
+# ==============================================================================
+# CHAVES E SEGREDOS OPCIONAIS ADICIONAIS:
+# Se você quiser configurar chaves opcionais (como AUTH_TOKEN para proteger o gateway,
+# chave do Tavily, Serper, Firecrawl ou Groq para fallback externo), adicione-as
+# diretamente no Cloudflare Dashboard após o deploy:
+#
+#   Cloudflare Dashboard ➔ Workers & Pages ➔ pollin-uptime ➔ Settings ➔ Variables and Secrets ➔ Add Secret
+#
+# Exemplos:
+#   AUTH_TOKEN = sua_senha_mestra_privada
+#   EXTERNAL_FALLBACK_KEY = gsk_sua_chave_groq
+#   SEARCH_PROVIDER_1_KEY = tvly-sua_chave_tavily
+#   SEARCH_PROVIDER_2_KEY = sua_chave_serper
+#   FETCH_PROVIDER_2_KEY = fc-sua_chave_firecrawl
+# ==============================================================================

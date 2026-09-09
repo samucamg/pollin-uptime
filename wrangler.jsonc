@@ -18,7 +18,7 @@
     "ENABLE_JINA_READER": "true",
     "EXTERNAL_FALLBACK_URL": "",
     "EXTERNAL_FALLBACK_MODEL": "llama-3.3-70b-versatile",
-    "SEARCH_PROVIDER_1_TYPE": "duckduckgo",
+    "SEARCH_PROVIDER_1_TYPE": "searxng",
     "SEARCH_PROVIDER_1_URL": "",
     "SEARCH_PROVIDER_2_TYPE": "",
     "SEARCH_PROVIDER_2_URL": "",

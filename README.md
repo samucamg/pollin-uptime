@@ -199,25 +199,21 @@ Conta com uma **cascata de 4 camadas de resiliência** (Modelo Principal ➔ Fal
 </div>
 
 ### 🧩 Variáveis de Configuração e Segredos
-Todos os campos são **opcionais** e podem ser deixados em branco caso não vá utilizar o recurso específico.
 
-#### 🔒 Segredos (`.dev.vars` / Cloudflare Secrets) - Apenas Chaves e Senhas
+O formulário do Cloudflare Deploy Button solicita **apenas a chave principal da Pollinations** e as variáveis de ambiente normais (todas opcionais com padrão pré-configurado). Provedores como **SearXNG** e **Jina Reader** funcionam 100% sem chaves ou senhas.
+
+#### 🔒 Segredo Inicial de Deploy (`.dev.vars.example` / Cloudflare Secrets)
 | Segredo | Exemplo | Descrição |
 |---|---|---|
-| **`POLLINATIONS_API_KEY`** | `sk_...` | Chave secreta da Pollinations ([enter.pollinations.ai](https://enter.pollinations.ai/keys)). Deixe vazio para modo gratuito/público. |
-| **`AUTH_TOKEN`** | `sua-senha-mestra` | Token mestre privado para seus clientes acessarem o gateway. Deixe vazio para acesso livre. |
-| **`EXTERNAL_FALLBACK_KEY`** | `gsk_...` | Chave de API do provedor externo (Groq, OpenRouter). Deixe vazio se não usar failover externo. |
-| **`SEARCH_PROVIDER_1_KEY`** | `tvly-...` | Chave de API de busca (se usar Tavily ou Serper). Deixe vazio para DuckDuckGo ou SearXNG. |
-| **`SEARCH_PROVIDER_2_KEY`** | `tvly-...` | Chave de API de busca do 2º provedor. Deixe vazio se não for utilizar. |
-| **`FETCH_PROVIDER_2_KEY`** | `fc-...` | Chave de API do Firecrawl. Deixe vazio se utilizar apenas Jina Reader ($0 sem chave). |
+| **`POLLINATIONS_API_KEY`** | `sk_...` | Chave secreta da Pollinations ([enter.pollinations.ai](https://enter.pollinations.ai/keys)). |
+
+> 💡 **Segredos Opcionais Adicionais:** Chaves opcionais (como `AUTH_TOKEN`, `EXTERNAL_FALLBACK_KEY`, `SEARCH_PROVIDER_1_KEY` para Tavily/Serper ou `FETCH_PROVIDER_2_KEY` para Firecrawl) não são solicitadas no formulário inicial para não bloquear o deploy. Caso deseje utilizá-las, basta adicioná-las após o deploy em: **Cloudflare Dashboard ➔ Workers & Pages ➔ pollin-uptime ➔ Settings ➔ Variables and Secrets ➔ Add Secret**.
 
 #### 🌐 Variáveis de Ambiente (`wrangler.jsonc` `vars` - Texto Aberto)
 | Variável | Padrão | Descrição |
 |---|---|---|
-| **`EXTERNAL_FALLBACK_URL`** | `""` | URL do endpoint compatível com OpenAI (ex: `https://api.groq.com/openai/v1`). |
-| **`EXTERNAL_FALLBACK_MODEL`** | `llama-3.3-70b-versatile` | Modelo para o failover externo de emergência. |
-| **`SEARCH_PROVIDER_1_TYPE`** | `duckduckgo` | Motor de busca padrão (`duckduckgo`, `searxng`, `tavily`, `serper`). |
-| **`SEARCH_PROVIDER_1_URL`** | `""` | URL do seu SearXNG (ex: `http://seu-host:8080`). Vazio para DuckDuckGo. |
+| **`SEARCH_PROVIDER_1_TYPE`** | `searxng` | Motor de busca padrão (`searxng` privado, `duckduckgo`, `tavily`, `serper`). |
+| **`SEARCH_PROVIDER_1_URL`** | `""` | URL do seu SearXNG (ex: `http://seu-host:8080`). Não requer senha! |
 | **`SEARCH_PROVIDER_2_TYPE`** | `""` | Segundo motor de busca opcional. |
 | **`SEARCH_PROVIDER_2_URL`** | `""` | URL do 2º provedor de busca se for SearXNG. |
 | **`FETCH_PROVIDER_1_TYPE`** | `jina` | Motor de leitura de URLs (`jina` $0 gratuito ou `firecrawl`). |
